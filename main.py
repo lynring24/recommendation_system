@@ -24,8 +24,10 @@ def represent_movies():
     global genre_count, total_count, representation, movie_ids
     df = pd.read_csv('data/movies_w_imgurl.csv', usecols=['movieId','genres'])
     # set of genre
-    genres_list = set(df['genres'].tolist())
-    genre_count = { genre : 0 for genre in genres_list}
+    genres_list = []
+    for line in df['genres'].tolist():
+        genres_list.extend(line.split('|'))
+    genre_count = { genre:0 for genre in iter(genres_list)} 
     
     for line in df['genres'].tolist(): 
         items = line.split('|')
@@ -33,7 +35,7 @@ def represent_movies():
             genre_count[item]+=1
     
     # check total count 
-    movie_ids = set(df['movieId'].tolist())
+    movie_ids = df.drop_duplicates(['movieId']).tolist()
     total_count = len(movie_ids)
     print ("movie_count : "+str(total_count))
     # create IDF for genre_count 
@@ -45,9 +47,10 @@ def represent_movies():
     # fill representation 
     representation = df
     for genre in genres_list:
-        representation[genre] = []  
+        representation[genre] = df.apply(lambda x : 0, axis=1) 
 
     for line in representation:
+        print(line)
         items = line['genre'].split('|')
         for genre in genres_list:
             if genre in items:
