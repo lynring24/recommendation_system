@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-import csv
 #from unittest.py import *
 
 def read_user_id():
@@ -21,21 +20,23 @@ def do(ids):
     return prediction
 
 def represent_movies():  
-    global genre_count, total_count, representation, movie_ids
-    df = pd.read_csv('data/movies_w_imgurl.csv', usecols=['movieId','genres'])
+    global genre_count, total_count, movie_ids
+    df = pd.read_csv('data/movies_w_imgurl.csv', usecols = ['movieId','genres'])
+    #df = pd.read_csv('data/movies_w_imgurl.csv', names = ['movieId', 'id', 'movieName' ,'genres', 'URL'])
     # set of genre
     genres_list = []
     for line in df['genres'].tolist():
         genres_list.extend(line.split('|'))
-    genre_count = { genre:0 for genre in iter(genres_list)} 
+    genres_list = set(genres_list)
+    genre_count = { genre:0 for genre in iter(genres_list)}  
     
+ 
     for line in df['genres'].tolist(): 
         items = line.split('|')
         for item in items:
             genre_count[item]+=1
-    
     # check total count 
-    movie_ids = df.drop_duplicates(['movieId']).tolist()
+    movie_ids = set(df['movieId'].tolist())
     total_count = len(movie_ids)
     print ("movie_count : "+str(total_count))
     # create IDF for genre_count 
@@ -43,33 +44,37 @@ def represent_movies():
     for key in genre_count.keys():
         IDF = np.log10(total_count / genre_count[key])
         genre_count[key] = TF * IDF
+        print (key, genre_count[key])
     
     # fill representation 
-    representation = df
     for genre in genres_list:
-        representation[genre] = df.apply(lambda x : 0, axis=1) 
+        df[genre] = 0.0 
 
-    for line in representation:
-        print(line)
-        items = line['genre'].split('|')
+    print (df.shape)
+    for index,row in df.iterrows(): 
+       	items = row['genres'].split('|')
         for genre in genres_list:
             if genre in items:
-               line[genre] = genre_count[genre]
-            else:
-               line[genre] = 0 
+               df.at[index, genre] = genre_count[genre]
+    store(df)
             
-    print ("genre shape: %d" %(representation.shape))
-        
-        
-    
 
+
+def store(table, fname=None):
+    if fname == None:
+       fname = 'test.csv'
+    table.to_csv(fname, mode='w')
+
+
+
+       
 def represent_tags():
     global tag_count, total_count
     df = pd.read_csv('data/tags.csv', usecols=['userId','movieId','tag','timestamp'])
     tag_count = dict()
     # count tags
-    for line in df['tag'].tolist():
-        tags = line.split(',').strip()
+    for index, row in df['tag'].tolist():
+        tags = row.split(',').strip()
         for tag in tags:
             if tag_count.get(tag) == None:
                tag_count[tag] = 0
@@ -80,12 +85,6 @@ def represent_tags():
     IDFs = dict()
     for key in tag_count.keys():
         IDFs[key] = np.log10(total_count / tag_count[key])
-    
-          
-         
-             
-
-           
 
              
 
