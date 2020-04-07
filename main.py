@@ -12,14 +12,11 @@ def read_user_id():
 def write_output(prediction):
     with open('output.txt', 'w') as f:
         for pred in prediction:
-            for index, row in pred.iterrows():
-                line = [row['uid'], str(index), str(row[0])]
-                line=','.join(line)
-                f.write(line + "\n")
+            for row in pred:
+                f.write(row + "\n")
 
 def do(ids):
     # TODO  
-    # test implementation
     prediction = [ get_top(uid) for uid in ids]
     return prediction
 
@@ -28,10 +25,17 @@ def get_top(uid, top=30):
     prediction = calcutate_rate(uid)
     prediction = np.around(prediction, 4)
     prediction = prediction.sort_values().head(top).to_frame()
-    prediction['uid'] = uid 
-    prediction = prediction.sort_values(by=[0], ascending=[False])
+    mIds = set(prediction[0].to_list())
+    result=[]
+    for mId in sorted(mIds, reverse=True):
+        subset = prediction[prediction[0] == mId].sort_index(ascending=True)
+        for index, row in subset.iterrows():
+            #result.append(','.join([str(uid), str(index), str(row[0])]))     
+            line=','.join([str(uid), str(index), str(row[0])])     
+            result.append(line)
     # display(prediction)
-    return prediction 
+    # prediction['movieId'] = prediction.index
+    return result 
     
 
 def represent_movies():  
