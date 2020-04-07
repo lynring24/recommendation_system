@@ -19,15 +19,18 @@ def do(ids):
     # TODO  
     # test implementation
     # prediction = [['{},{},{}'.format(i, 5, 3.5)]*30 for i in ids]
-    prediction = [[get_top(uid)] for uid in ids]
+    prediction = [ get_top(uid) for uid in ids]
     return prediction
 
 
 def get_top(uid, top=30):
     prediction = calcutate_rate(uid)
+    prediction = np.around(prediction, 4)
     # display(prediction)
-    display(prediction.sort_values().head(top))
-      
+
+    prediction = prediction.sort_values().head(top).sort_index()
+    display(prediction)
+    return prediction.sort_values().head(top) 
     
 
 
