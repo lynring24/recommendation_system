@@ -150,10 +150,14 @@ def calcutate_rate(uid):
     # np.matmul(user_sim.T, user_rating) / (sim_sum + 1))
     rated_movieIds =  df_rate[df_rate.userId == int(uid)]['movieId'].tolist()
     # user_sim = similarity[similarity['movieId'].isin(rated_movieIds)]
-    print(rated_movieIds)
-    print (type(rated_movieIds))
-    # rated_movieIds = [ str(idx) for idx in rated_movieIds]
-    user_sim = similarity.iloc[rated_movieIds]
+    #print(rated_movieIds)
+    # print (type(rated_movieIds))
+    # rated_movieIds = [ str(idx for idx in rated_movieIds]
+    # user_sim = similarity.iloc[rated_movieIds]
+    str_ids = [movieIds.index(idx) for idx in rated_movieIds] 
+    print(uid)
+    display(similarity.loc[rated_movieIds])
+    # display(similarity.iloc[str_ids])
     #print (user_sim.index)
     # print(user_sim.shape)
     # print(np.sum(-1, user_sim).shape)
@@ -164,25 +168,20 @@ def calcutate_rate(uid):
 if __name__ == "__main__":
     # task 1
     represent_movies()
-
-    print (84236 in representation['movieId'].tolist())
     # task 2
     represent_tags() 
-    print (84236 in representation['movieId'].tolist())
     # task 3
     similarity = cosine_similarity(representation)
     movieIds = representation['movieId'].tolist()
-    similarity = pd.DataFrame(similarity, columns= movieIds, index= movieIds)
+    similarity = pd.DataFrame(similarity, columns=movieIds, index=movieIds)
     # test=[movieIds[0], movieIds[1]]
     # print (test)
     # print (similarity.iloc[test])
-   
-    print (84236 in similarity.index.tolist())
     # print (similarity.index)
     # store(similarity, "similarity.csv")
     
     # task 4 recommending
     init_rate()
-    #user_ids = read_user_id()
-    #result = do(user_ids)
+    user_ids = read_user_id()
+    result = do(user_ids)
     #write_output(result)
