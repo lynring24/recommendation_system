@@ -26,14 +26,11 @@ def do(ids):
 def get_top(uid, top=30):
     prediction = calcutate_rate(uid)
     prediction = np.around(prediction, 4)
-    # display(prediction)
-
-    prediction = prediction.sort_values().head(top).sort_index()
-    display(prediction)
-    return prediction.sort_values().head(top) 
+    #prediction = prediction.sort_values().head(top).sort_index()
+    prediction = prediction.sort_values().head(top)
+    prediction = [ ','.join([uid, str(key), str(value)]) for key, value in prediction.items()]
+    return prediction 
     
-
-
 
 def represent_movies():  
     global df_genre, representation
@@ -78,7 +75,6 @@ def represent_movies():
     # store(representation, "represent_genre.csv")
     # print(representation.shape)
             
-
 
 def store(table, fname=None):
     if fname == None:
@@ -140,19 +136,7 @@ def represent_tags():
                 representation.at[movie_id, tag] *= IDFs[tag]
         except: 
             pass
-    
-    # store(representation, 'representation_tag.csv')
-    # print(representation.shape)
              
-
-def cosine_sim(A, B):
-    sim = dot(A, B) * 1.0 / (norm(A) * norm(B))  
-    if math.isnan(sim):
-       sim = 0.0
-    return sim
-
-# cosine_similarity( array A, array B)
-
 
 def init_rate():
     global df_rate
@@ -185,11 +169,9 @@ if __name__ == "__main__":
     # task 3
     similarity = cosine_similarity(representation)
     movieIds = representation['movieId'].tolist()
-    similarity = pd.DataFrame(similarity, columns=movieIds, index=movieIds)
-    # store(similarity, "similarity.csv")
-    
+    similarity = pd.DataFrame(similarity, columns=movieIds, index=movieIds) 
     # task 4 recommending
     init_rate()
     user_ids = read_user_id()
     result = do(user_ids)
-    #write_output(result)
+    write_output(result)
