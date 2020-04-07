@@ -19,8 +19,18 @@ def do(ids):
     # TODO  
     # test implementation
     # prediction = [['{},{},{}'.format(i, 5, 3.5)]*30 for i in ids]
-    prediction = [[calcutate_rate(uid)] for uid in ids]
+    prediction = [[get_top(uid)] for uid in ids]
     return prediction
+
+
+def get_top(uid, top=30):
+    prediction = calcutate_rate(uid)
+    # display(prediction)
+    display(prediction.sort_values().head(top))
+      
+    
+
+
 
 def represent_movies():  
     global df_genre, representation
@@ -151,15 +161,16 @@ def calcutate_rate(uid):
     rated_movieIds = df_rate[df_rate.userId == int(uid)]['movieId'].tolist()
     # user_sim = similarity[similarity['movieId'].isin(rated_movieIds)]
     user_sim = similarity.loc[rated_movieIds]
-    print('user_sim.T.to_numpy().shape : ' , user_sim.T.to_numpy().shape)
-    print('user_sim.to_numpy().shape : ', user_sim.to_numpy().shape)
+    # print('user_sim.T.to_numpy().shape : ' , user_sim.T.to_numpy().shape)
+    # print('user_sim.to_numpy().shape : ', user_sim.to_numpy().shape)
     user_rating = df_rate[df_rate.userId == int(uid)]['rating']
-    print('user_rating.to_numpy().shape : ', user_rating.to_numpy().shape)
+    # print('user_rating.to_numpy().shape : ', user_rating.to_numpy().shape)
     # sim_sum = user_sim.T.to_numpy().sum()
     sim_sum = user_sim.sum()
-    print ('sim_sum.shape : ', sim_sum.shape)
+    # print ('sim_sum.shape : ', sim_sum.shape)
     # np.matmul(user_sim.T, user_rating) / (sim_sum + 1)
-    np.matmul(user_sim.T.to_numpy(), user_rating.to_numpy()) / (sim_sum + 1)
+    prediction = np.matmul(user_sim.T.to_numpy(), user_rating.to_numpy()) / (sim_sum + 1)
+    return prediction
     
      
  
