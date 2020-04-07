@@ -150,15 +150,16 @@ def calcutate_rate(uid):
     # np.matmul(user_sim.T, user_rating) / (sim_sum + 1))
     rated_movieIds = df_rate[df_rate.userId == int(uid)]['movieId'].tolist()
     # user_sim = similarity[similarity['movieId'].isin(rated_movieIds)]
-    user_sim = similarity.loc[rated_movieIds].to_numpy()
-    # print(user_sim.shape)
+    user_sim = similarity.loc[rated_movieIds]
+    print('user_sim.T.to_numpy().shape : ' , user_sim.T.to_numpy().shape)
+    print('user_sim.to_numpy().shape : ', user_sim.to_numpy().shape)
     user_rating = df_rate[df_rate.userId == int(uid)]['rating']
-    user_rating = user_rating.to_numpy()
-    # print(user_rating.shape)
+    print('user_rating.to_numpy().shape : ', user_rating.to_numpy().shape)
     # sim_sum = user_sim.T.to_numpy().sum()
     sim_sum = user_sim.sum()
-    print (sim_sum)
-    np.matmul(user_sim.T, user_rating) / (sim_sum + 1)
+    print ('sim_sum.shape : ', sim_sum.shape)
+    # np.matmul(user_sim.T, user_rating) / (sim_sum + 1)
+    np.matmul(user_sim.T.to_numpy(), user_rating.to_numpy()) / (sim_sum + 1)
     
      
  
