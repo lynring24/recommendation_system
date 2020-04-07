@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
+import math
+from sklearn.metrics.pairwise import cosine_similarity
 from IPython.display import display
 
 def read_user_id():
@@ -14,8 +16,10 @@ def write_output(prediction):
                 f.write(r + "\n")
 
 def do(ids):
+    # TODO  
     # test implementation
-    prediction = [['{},{},{}'.format(i, 5, 3.5)]*30 for i in ids]
+    # prediction = [['{},{},{}'.format(i, 5, 3.5)]*30 for i in ids]
+    prediction = [[calcutate_rate(uid)] for uid in ids]
     return prediction
 
 def represent_movies():  
@@ -58,8 +62,8 @@ def represent_movies():
         for genre in genres_list:
             if genre in items:
                representation.at[index, genre] = genre_count[genre]
-    store(representation, "represent_genre.csv")
-    print(representation.shape)
+    # store(representation, "represent_genre.csv")
+    # print(representation.shape)
             
 
 
@@ -116,24 +120,69 @@ def represent_tags():
                     representation.at[movie_id, tag] += 1
     ####### normalize tag TF with n_d
     ####### multipy IDF with TF
+            if n_d == 0:
+               continue
             for tag in tag_count.keys():
                 representation.at[movie_id, tag] /= n_d
                 representation.at[movie_id, tag] *= IDFs[tag]
         except: 
             pass
     
-    store(representation, 'representation_tag.csv')
-    print(representation.shape)
+    # store(representation, 'representation_tag.csv')
+    # print(representation.shape)
              
 
+def cosine_sim(A, B):
+    sim = dot(A, B) * 1.0 / (norm(A) * norm(B))  
+    if math.isnan(sim):
+       sim = 0.0
+    return sim
 
+# cosine_similarity( array A, array B)
+
+
+def init_rate():
+    global df_rate
+    df_rate = pd.read_csv('data/ratings.csv', usecols=['userId','movieId','rating'])
+
+
+def calcutate_rate(uid):
+    # np.matmul(user_sim.T, user_rating) / (sim_sum + 1))
+    rated_movieIds =  df_rate[df_rate.userId == int(uid)]['movieId'].tolist()
+    # user_sim = similarity[similarity['movieId'].isin(rated_movieIds)]
+    print(rated_movieIds)
+    print (type(rated_movieIds))
+    # rated_movieIds = [ str(idx) for idx in rated_movieIds]
+    user_sim = similarity.iloc[rated_movieIds]
+    #print (user_sim.index)
+    # print(user_sim.shape)
+    # print(np.sum(-1, user_sim).shape)
+    # user_rating = df_rate[df_rate.userId==uid].rating
+    #print(user_rating.shape)
+     
+ 
 if __name__ == "__main__":
     # task 1
     represent_movies()
+
+    print (84236 in representation['movieId'].tolist())
     # task 2
-    represent_tags()
- 
-    # task 4 
-    user_ids = read_user_id()
-    result = do(user_ids)
-    write_output(result)
+    represent_tags() 
+    print (84236 in representation['movieId'].tolist())
+    # task 3
+    similarity = cosine_similarity(representation)
+    movieIds = representation['movieId'].tolist()
+    similarity = pd.DataFrame(similarity, columns= movieIds, index= movieIds)
+    # test=[movieIds[0], movieIds[1]]
+    # print (test)
+    # print (similarity.iloc[test])
+   
+    print (84236 in similarity.index.tolist())
+    # print (similarity.index)
+    # store(similarity, "similarity.csv")
+    
+    # task 4 recommending
+    init_rate()
+    #user_ids = read_user_id()
+    #result = do(user_ids)
+    #write_output(result)
