@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-#from unittest.py import *
+from IPython.display import display
 
 def read_user_id():
     with open('input.txt', 'r') as f:
         return [l.strip() for l in  f.readlines()]
-
 
 def write_output(prediction):
     with open('output.txt', 'w') as f:
@@ -20,25 +19,28 @@ def do(ids):
     return prediction
 
 def represent_movies():  
-    global genre_count, total_count, movie_ids
-    df = pd.read_csv('data/movies_w_imgurl.csv', usecols = ['movieId','genres'])
+    global df_genre, representation
+    df_genre = pd.read_csv('data/movies_w_imgurl.csv', usecols = ['movieId','genres'])
     
     # set of genre
     genres_list = []
-    for line in df['genres'].tolist():
+    for line in df_genre['genres'].tolist():
         genres_list.extend(line.split('|'))
     genres_list = set(genres_list)
     genre_count = { genre:0 for genre in iter(genres_list)}  
     
     # count genre 
-    for line in df['genres'].tolist(): 
+    for line in df_genre['genres'].tolist(): 
         items = line.split('|')
         for item in items:
             genre_count[item]+=1
 
     # check total count 
-    movie_ids = set(df['movieId'].tolist())
+    movie_ids = set(df_genre['movieId'].tolist())
     total_count = len(movie_ids)
+    
+    representation = pd.DataFrame(movie_ids, columns=['movieId'])
+    # display(pd.DataFrame(representation))
 
     # create IDF for genre_count 
     TF = 1
@@ -48,16 +50,16 @@ def represent_movies():
     
     # fill representation 
     for genre in genres_list:
-        df[genre] = 0.0 
+        representation[genre] = 0.0 
 
    
-    for index,row in df.iterrows(): 
+    for index,row in df_genre.iterrows(): 
        	items = row['genres'].split('|')
         for genre in genres_list:
             if genre in items:
-               df.at[index, genre] = genre_count[genre]
-    store(df)
-    print (df.shape)
+               representation.at[index, genre] = genre_count[genre]
+    store(representation, "represent_genre.csv")
+    print(representation.shape)
             
 
 
@@ -66,8 +68,6 @@ def store(table, fname=None):
        fname = 'test.csv'
     table.to_csv(fname, mode='w')
 
-
-
        
 def represent_tags():
     global tag_count, total_count
@@ -75,40 +75,63 @@ def represent_tags():
     
     tag_list = []
     for line in df_tag['tag'].tolist():
-        tag_list.extend(line.split(',').strip()) 
+        tag_list.extend([ item.strip() for item in line.split(',')]) 
     tag_list = set(tag_list)
-    tag_count = { tag:0 for tag in iter(tag_list)}
+    tag_count = { tag: 0.0 for tag in iter(tag_list)}
 
     # init table for tag
-    for key in tag_list():
-        df_tag[key]=0.0
+    for key in tag_count.keys():
+        representation[key]=0.0
 
-    # count tags
+    # calculate IDF for tag  
+    ### count tags
     for row in df_tag['tag'].tolist():
-        tags = row.split(',').strip()
+        tags = [ item.strip() for item in row.split(',') ]
         for tag in tags:
             tag_count[tag]+=1
 
-    # check total count 
+    ### check total count 
     movie_ids = set(df_tag['movieId'].tolist())
     total_count = len(movie_ids) 
              
-    # calculate IDF for tag  
+    ### calculate IDF for tag  
     IDFs = dict()
     for key in tag_count.keys():
         IDFs[key] = np.log10(total_count / tag_count[key])
    
     # calacate TF for tag 
-     # read by movie with tags -> count total tags 
-     # iter by tag to clculate the TF
+    ### read by movies by movieid  -> count total tags 
+    ### there are cases of multiple user tagging a same movie, must consider the case of same tag used 
+    ## movie id in tag.csv
+    for movie_id in movie_ids:
+        n_d = 0.0
+    #### representation [ movie, tag] += 1 if exist
+        try:
+            mid_rows = df_tag[df_tag.movieId == movie_id]
+            for index, row in mid_rows.iterrows():
+                tags = [ item.strip() for item in row['tag'].split(',')]
+                n_d += len(tags)
+    ###### using df_tag [tag] as n_(t,d)
+                for tag in tags:
+                    representation.at[movie_id, tag] += 1
+    ####### normalize tag TF with n_d
+    ####### multipy IDF with TF
+            for tag in tag_count.keys():
+                representation.at[movie_id, tag] /= n_d
+                representation.at[movie_id, tag] *= IDFs[tag]
+        except: 
+            pass
+    
+    store(representation, 'representation_tag.csv')
+    print(representation.shape)
+             
 
 
 if __name__ == "__main__":
     # task 1
     represent_movies()
-    #check_genre()
     # task 2
-    
+    represent_tags()
  
     # task 4 
     user_ids = read_user_id()
