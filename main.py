@@ -11,14 +11,15 @@ def read_user_id():
 
 def write_output(prediction):
     with open('output.txt', 'w') as f:
-        for p in prediction:
-            for r in p:
-                f.write(r + "\n")
+        for pred in prediction:
+            for index, row in pred.iterrows():
+                line = [row['uid'], str(index), str(row[0])]
+                line=','.join(line)
+                f.write(line + "\n")
 
 def do(ids):
     # TODO  
     # test implementation
-    # prediction = [['{},{},{}'.format(i, 5, 3.5)]*30 for i in ids]
     prediction = [ get_top(uid) for uid in ids]
     return prediction
 
@@ -26,9 +27,10 @@ def do(ids):
 def get_top(uid, top=30):
     prediction = calcutate_rate(uid)
     prediction = np.around(prediction, 4)
-    #prediction = prediction.sort_values().head(top).sort_index()
-    prediction = prediction.sort_values().head(top)
-    prediction = [ ','.join([uid, str(key), str(value)]) for key, value in prediction.items()]
+    prediction = prediction.sort_values().head(top).to_frame()
+    prediction['uid'] = uid 
+    prediction = prediction.sort_values(by=[0], ascending=[False])
+    # display(prediction)
     return prediction 
     
 
@@ -79,7 +81,7 @@ def represent_movies():
 def store(table, fname=None):
     if fname == None:
        fname = 'test.csv'
-    table.to_csv(fname, mode='w')
+    table.to_csv(fname, mode='a')
 
        
 def represent_tags():
