@@ -5,6 +5,7 @@ import os
 import heapq
 import math
 
+
 class DeepFM:
     def __init__(self):
         self.train = norm_train
@@ -14,7 +15,7 @@ class DeepFM:
         # initialize tuning options
         self.user_layer = [512, 64]
         self.item_layer = [1024, 64]
-        self.lr = 0.0001
+        self.learning_rate = 0.0001
         self.max_epoch = 50
         self.batch_size = 256
         self.topK = 10
@@ -22,7 +23,7 @@ class DeepFM:
         self.add_embedding_layer()
         self.add_loss()
         self.add_train_step()
-        self.check_point = args.check_point
+        self.check_point = './check_point'
         self.init_sess()
 
 
@@ -45,19 +46,19 @@ class DeepFM:
             return tf.Variable(tf.truncated_normal(shape=shape, dtype=tf.float32, stddev=0.01), name=name)
 
         with tf.name_scope("user_layer"):
-            user_W1 = init_variable([self.shape[1], self.userLayer[0]], "user_W1")
+            user_W1 = init_variable([self.shape[1], self.user_layer[0]], "user_W1")
             user_out = tf.matmul(user_input, user_W1)
-            for i in range(0, len(self.userLayer)-1):
-                W = init_variable([self.userLayer[i], self.userLayer[i+1]], "user_W"+str(i+2))
-                b = init_variable([self.userLayer[i+1]], "user_b"+str(i+2))
+            for i in range(0, len(self.user_layer)-1):
+                W = init_variable([self.user_layer[i], self.user_layer[i+1]], "user_W"+str(i+2))
+                b = init_variable([self.user_layer[i+1]], "user_b"+str(i+2))
                 user_out = tf.nn.relu(tf.add(tf.matmul(user_out, W), b))
 
         with tf.name_scope("item_layer"):
-            item_W1 = init_variable([self.shape[0], self.itemLayer[0]], "item_W1")
+            item_W1 = init_variable([self.shape[0], self.item_layer[0]], "item_W1")
             item_out = tf.matmul(item_input, item_W1)
-            for i in range(0, len(self.itemLayer)-1):
-                W = init_variable([self.itemLayer[i], self.itemLayer[i+1]], "item_W"+str(i+2))
-                b = init_variable([self.itemLayer[i+1]], "item_b"+str(i+2))
+            for i in range(0, len(self.item_layer)-1):
+                W = init_variable([self.item_layer[i], self.item_layer[i+1]], "item_W"+str(i+2))
+                b = init_variable([self.item_layer[i+1]], "item_b"+str(i+2))
                 item_out = tf.nn.relu(tf.add(tf.matmul(item_out, W), b))
 
         norm_user_output = tf.sqrt(tf.reduce_sum(tf.square(user_out), axis=1))
@@ -74,7 +75,7 @@ class DeepFM:
 
 
     def add_train_step(self):
-        optimizer = tf.train.AdamOptimizer(self.lr)
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
         self.train_step = optimizer.minimize(self.loss)
 
 
@@ -83,7 +84,7 @@ class DeepFM:
         self.config.gpu_options.allow_growth = True
         self.config.allow_soft_placement = True
         self.sess = tf.Session(config=self.config)
-        self.sess.run(tf.global_variables_initializer())
+        self.sess.fit(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
         if os.path.exists(self.check_point):
             [os.remove(f) for f in os.listdir(self.check_point)]
@@ -91,7 +92,7 @@ class DeepFM:
             os.mkdir(self.check_point)
 
 
-   def run(self):
+   def fit(self):
        # gain :  Normalized Discounted Cumulative Gain
         optimized= {'hit_ratio':-1, 'gain' : -1, 'epoch' : -1}
 
@@ -107,8 +108,8 @@ class DeepFM:
                 optimized['hit_ratio'] = hit_ratio
                 optimized['gain'] = gain
                 optimized['epoch'] = epoch
-                self.saver.save(self.sess, self.checkPoint)
-            if epoch - optimized['epoch'] > self.earlyStop:
+                self.saver.save(self.sess, self.check_point)
+            if epoch - optimized['epoch'] > self.early_stop:
                 print("Normal Early stop!")
                 break
             print("="*20+"Epoch ", epoch, "End"+"="*20)
@@ -117,26 +118,15 @@ class DeepFM:
 
 
     def run_epoch(self, sess, verbose=10):
-        # TODO
-        # get shuffled data
-        # user_total = norm_train['userId']
-        # item_total = norm_train['movieId']
-        # rate_total = norm_train['rating']
-
-
-
-        # train_u, train_i, train_r = self.dataSet.getInstances(self.train, self.negNum)
-        # train_len = len(train_u)
-        # shuffled_idx = np.random.permutation(np.arange(train_len))
-        # train_u = train_u[shuffled_idx]
-        # train_i = train_i[shuffled_idx]
-        # train_r = train_r[shuffled_idx]
+        user_total = norm_train['userId'].to_numpy()
+        iter_total = norm_train['movieId'].to_numpy()
+        rate_total = norm_train['rating'].to_numpy()
 
         num_batches = norm_train.shape[0] // self.batch_size + 1
         losses = []
         for i in range(num_batches):
             min_idx = i * self.batch_size
-            max_idx = np.min([train_len, (i+1)*self.batch_size])
+            max_idx = np.min([len(user_total), (i+1)*self.batch_size])
             user_batch = user_total[min_idx: max_idx]
             item_batch = item_total[min_idx: max_idx]
             rate_batch = rate_total[min_idx: max_idx]
@@ -150,5 +140,54 @@ class DeepFM:
                 ))
                 sys.stdout.flush()
         loss = np.mean(losses)
-        print("\nMean loss : {}".format(loss))
+        print("\n Mean loss : {}".format(loss))
         return loss
+
+    def evaluate(self, sess, topK):
+        def get_hit_ratio(rank_list, target_item):
+            for item in rank_list:
+                if item == target_item:
+                    return 1
+            return 0
+        def get_normed_gain(rank_list, target_item):
+            for i in range(len(rank_list)):
+                item = rank_list[i]
+                if item == target_item:
+                    return math.log(2) / math.log(i+2)
+            return 0
+
+        hit_ratios =[]
+        normed_gains = []
+        testUser = self.testNeg[0]
+        testItem = self.testNeg[1]
+        for i in range(len(testUser)):
+            target = testItem[i][0]
+            feed_dict = self.create_feed_dict(testUser[i], testItem[i])
+            predict = sess.run(self.y_, feed_dict=feed_dict)
+
+            item_score_dict = {}
+
+            for j in range(len(testItem[i])):
+                item = testItem[i][j]
+                item_score_dict[item] = predict[j]
+
+            rank_list = heapq.nlargest(topK, item_score_dict, key=item_score_dict.get)
+
+            hit_ratio = get_hit_ratio(rank_list, target)
+            normed_gain = get_normed_gain(rank_list, target)
+            hit_ratios.append(hit_ratio)
+            normed_gains.append(normed_gains)
+        return np.mean(hit_ratios), np.mean(normed_gains)
+
+
+    def predict(self, sess):
+        # input : one-hot endcoded user & item
+        # restore check point saved model
+        saver.restore(sess, self.check_point)
+
+        feed_dict = {self.user: user_batch, self.item: item_batch, self.rate: None}
+        predict, losses = sess.run(self.y_, feed_dict=feed_dict)
+        print("prediction : {} ".format(predict))
+
+
+if __init__ == 'main':
