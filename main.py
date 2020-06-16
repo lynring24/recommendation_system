@@ -1,183 +1,132 @@
-# -*- coding: utf-8 -*-
-import pandas as pd
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[5]:
+
+
+## import keras models, layers and optimizers
+from keras.models import Sequential, Model
+from keras.layers import Embedding, Flatten, Dense, Dropout, concatenate, multiply, Input
+from keras.optimizers import Adam
 import numpy as np
-import math
+import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from IPython.display import display
+from keras import backend
+
 
 def read_user_id():
-    with open('input.txt', 'r') as f:
-        return [l.strip() for l in  f.readlines()]
+    with open('./input.txt', 'r') as f:
+        return [l.strip().split(',') for l in  f.readlines()]
+
 
 def write_output(prediction):
-    with open('output.txt', 'w') as f:
+    with open('./output.txt', 'w') as f:
         for pred in prediction:
-            for row in pred:
-                f.write(row + "\n")
-
-def do(ids):
-    # TODO  
-    prediction = [ get_top(uid) for uid in ids]
-    return prediction
+            f.write(pred+"\n")
 
 
-def get_top(uid, top=30):
-    prediction = calcutate_rate(uid)
-    prediction = np.around(prediction, 4)
-    prediction = prediction.sort_values().head(top).to_frame()
-    mIds = set(prediction[0].to_list())
-    result=[]
-    for mId in sorted(mIds, reverse=True):
-        subset = prediction[prediction[0] == mId].sort_index(ascending=True)
-        for index, row in subset.iterrows():
-            #result.append(','.join([str(uid), str(index), str(row[0])]))     
-            line=','.join([str(uid), str(index), str(row[0])])     
-            result.append(line)
-    # display(prediction)
-    # prediction['movieId'] = prediction.index
-    return result 
-    
-
-def represent_movies():  
-    global df_genre, representation
-    df_genre = pd.read_csv('data/movies_w_imgurl.csv', usecols = ['movieId','genres'])
-    
-    # set of genre
-    genres_list = []
-    for line in df_genre['genres'].tolist():
-        genres_list.extend(line.split('|'))
-    genres_list = set(genres_list)
-    genre_count = { genre:0 for genre in iter(genres_list)}  
-    
-    # count genre 
-    for line in df_genre['genres'].tolist(): 
-        items = line.split('|')
-        for item in items:
-            genre_count[item]+=1
-
-    # check total count 
-    movie_ids = set(df_genre['movieId'].tolist())
-    total_count = len(movie_ids)
-    
-    representation = pd.DataFrame(movie_ids, columns=['movieId'])
-    # display(pd.DataFrame(representation))
-
-    # create IDF for genre_count 
-    TF = 1
-    for key in genre_count.keys():
-        IDF = np.log10(total_count / genre_count[key])
-        genre_count[key] = TF * IDF
-    
-    # fill representation 
-    for genre in genres_list:
-        representation[genre] = 0.0 
-
-   
-    for index,row in df_genre.iterrows(): 
-       	items = row['genres'].split('|')
-        for genre in genres_list:
-            if genre in items:
-               representation.at[index, genre] = genre_count[genre]
-    # store(representation, "represent_genre.csv")
-    # print(representation.shape)
-            
-
-def store(table, fname=None):
-    if fname == None:
-       fname = 'test.csv'
-    table.to_csv(fname, mode='a')
-
-       
-def represent_tags():
-    global tag_count, total_count
-    df_tag = pd.read_csv('data/tags.csv', usecols=['userId','movieId','tag','timestamp'])
-    
-    tag_list = []
-    for line in df_tag['tag'].tolist():
-        tag_list.extend([ item.strip() for item in line.split(',')]) 
-    tag_list = set(tag_list)
-    tag_count = { tag: 0.0 for tag in iter(tag_list)}
-
-    # init table for tag
-    for key in tag_count.keys():
-        representation[key]=0.0
-
-    # calculate IDF for tag  
-    ### count tags
-    for row in df_tag['tag'].tolist():
-        tags = [ item.strip() for item in row.split(',') ]
-        for tag in tags:
-            tag_count[tag]+=1
-
-    ### check total count 
-    movie_ids = set(df_tag['movieId'].tolist())
-    total_count = len(movie_ids) 
-             
-    ### calculate IDF for tag  
-    IDFs = dict()
-    for key in tag_count.keys():
-        IDFs[key] = np.log10(total_count / tag_count[key])
-   
-    # calacate TF for tag 
-    ### read by movies by movieid  -> count total tags 
-    ### there are cases of multiple user tagging a same movie, must consider the case of same tag used 
-    ## movie id in tag.csv
-    for movie_id in movie_ids:
-        n_d = 0.0
-    #### representation [ movie, tag] += 1 if exist
-        try:
-            mid_rows = df_tag[df_tag.movieId == movie_id]
-            for index, row in mid_rows.iterrows():
-                tags = [ item.strip() for item in row['tag'].split(',')]
-                n_d += len(tags)
-    ###### using df_tag [tag] as n_(t,d)
-                for tag in tags:
-                    representation.at[movie_id, tag] += 1
-    ####### normalize tag TF with n_d
-    ####### multipy IDF with TF
-            if n_d == 0:
-               continue
-            for tag in tag_count.keys():
-                representation.at[movie_id, tag] /= n_d
-                representation.at[movie_id, tag] *= IDFs[tag]
-        except: 
-            pass
-             
-
-def init_rate():
-    global df_rate
-    df_rate = pd.read_csv('data/ratings.csv', usecols=['userId','movieId','rating'])
+# In[6]:
 
 
-def calcutate_rate(uid):
-    # np.matmul(user_sim.T, user_rating) / (sim_sum + 1))
-    rated_movieIds = df_rate[df_rate.userId == int(uid)]['movieId'].tolist()
-    # user_sim = similarity[similarity['movieId'].isin(rated_movieIds)]
-    user_sim = similarity.loc[rated_movieIds]
-    # print('user_sim.T.to_numpy().shape : ' , user_sim.T.to_numpy().shape)
-    # print('user_sim.to_numpy().shape : ', user_sim.to_numpy().shape)
-    user_rating = df_rate[df_rate.userId == int(uid)]['rating']
-    # print('user_rating.to_numpy().shape : ', user_rating.to_numpy().shape)
-    # sim_sum = user_sim.T.to_numpy().sum()
-    sim_sum = user_sim.sum()
-    # print ('sim_sum.shape : ', sim_sum.shape)
-    # np.matmul(user_sim.T, user_rating) / (sim_sum + 1)
-    prediction = np.matmul(user_sim.T.to_numpy(), user_rating.to_numpy()) / (sim_sum + 1)
-    return prediction
-    
-     
- 
+def build_MLP(n_users, n_items):
+  
+    # build model
+    num_epochs = 20
+    batch_size = 256
+    mf_dim = 8
+    layers = eval('[64,32,16,8]')
+    reg_mf = 0
+    reg_layers = eval('[0,0,0,0]')
+    verbose = 1
+
+    # Build model
+    dim_embedding_user = 50
+    dim_embedding_item = 50
+
+    ## item embedding
+    item_input= Input(shape=[1], name='item')
+    item_embedding = Embedding(n_items + 1, dim_embedding_item, name='Item-Embedding')(item_input)
+    item_vec = Flatten(name='Item-Flatten')(item_embedding)
+    item_vec = Dropout(0.2)(item_vec)
+
+    ## user embedding
+    user_input = Input(shape=[1], name='User')
+    user_embedding = Embedding(n_users + 1, dim_embedding_user, name ='User-Embedding')(user_input)
+    user_vec = Flatten(name ='User-Flatten')(user_embedding)
+    user_vec = Dropout(0.2)(user_vec)
+
+    ## concatenate flattened values 
+    concat = concatenate([item_vec, user_vec])
+    concat_dropout = Dropout(0.2)(concat)
+
+    ## add dense layer (can try more)
+    dense_1 = Dense(50, name ='Dense1', activation='relu')(concat)
+    dropout_1 = Dropout(0.2)(dense_1)
+    dense_2 = Dense(20, activation="relu", name = "Dense2")(dropout_1)
+    dropout_2 = Dropout(0.2)(dense_2)
+    dense_3 = Dense(10, activation="relu", name = "Dense3")(dropout_2)
+    dropout_3 = Dropout(0.2)(dense_3)
+
+    ## define output (can try sigmoid instead of relu)
+    result = Dense(1, activation ='relu',name ='Activation')(dropout_3)
+
+    ## define model with 2 inputs and 1 output
+    return Model(inputs=[user_input, item_input], outputs=result, name="MLP")
+
+
+
+def rmse(y_true, y_pred):
+    return backend.sqrt(backend.mean(backend.square(y_pred - y_true), axis=-1))
+
+
+# In[7]:
+
+
+
+
 if __name__ == "__main__":
-    # task 1
-    represent_movies()
-    # task 2
-    represent_tags() 
-    # task 3
-    similarity = cosine_similarity(representation)
-    movieIds = representation['movieId'].tolist()
-    similarity = pd.DataFrame(similarity, columns=movieIds, index=movieIds) 
-    # task 4 recommending
-    init_rate()
-    user_ids = read_user_id()
-    result = do(user_ids)
-    write_output(result)
+    df_train = pd.read_csv('data/ratings_train.csv', usecols = ['userId', 'movieId', 'rating'])
+    df_valid = pd.read_csv('data/ratings_vali.csv', usecols = ['userId', 'movieId', 'rating'])
+ 
+    # prepare train data
+    n_users, n_items = max(df_train.userId.unique()), max(df_train.movieId.unique())
+    user_train = df_train['userId'].to_numpy()
+    item_train = df_train['movieId'].to_numpy()
+    rate_train = df_train['rating'].to_numpy()
+
+    ## define model 
+    recommender = build_MLP(n_users, n_items)
+    # recommender.summary()
+    
+    # compile model
+    opt_adam = Adam(lr = 0.002)
+    recommender.compile(optimizer=Adam(lr = 0.002), loss= ['mse'], metrics=['accuracy', rmse ])
+                      
+    ## fit model
+    track_training = recommender.fit([df_train['userId'], df_train['movieId']],
+                                    df_train['rating'],
+                                    batch_size = 256,
+                                    validation_split = 0.005,
+                                    epochs =7,
+                                    verbose = 0)
+    # store model weights
+    TRAINED_PARAM = 'param.data'
+    recommender.save_weights(TRAINED_PARAM)
+#     recommender.load_weights(TRAINED_PARAM)
+
+    # predict requests
+    inputs = read_user_id()
+    predictions = []
+    for user, movie in inputs:
+        target = [[int(user)],[int(movie)]]
+        predict = recommender.predict(target)[0][0]
+        predict = round(predict, 8)
+        predictions.append('{},{},{}'.format(user, movie, str(predict)))
+    write_output(predictions)    
+
+
+# In[ ]:
+
+
+# pd.DataFrame(track_training.history)
+
