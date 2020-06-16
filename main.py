@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[5]:
+# In[1]:
 
 
 ## import keras models, layers and optimizers
@@ -25,7 +25,7 @@ def write_output(prediction):
             f.write(pred+"\n")
 
 
-# In[6]:
+# In[2]:
 
 
 def build_MLP(n_users, n_items):
@@ -79,7 +79,7 @@ def rmse(y_true, y_pred):
     return backend.sqrt(backend.mean(backend.square(y_pred - y_true), axis=-1))
 
 
-# In[7]:
+# In[3]:
 
 
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                                     df_train['rating'],
                                     batch_size = 256,
                                     validation_split = 0.005,
-                                    epochs =7,
+                                    epochs =8,
                                     verbose = 0)
     # store model weights
     TRAINED_PARAM = 'param.data'
@@ -125,8 +125,14 @@ if __name__ == "__main__":
     write_output(predictions)    
 
 
-# In[ ]:
+# In[4]:
 
 
 # pd.DataFrame(track_training.history)
+
+
+# In[5]:
+
+
+# recommender.summary()
 
