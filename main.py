@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
-## import keras models, layers and optimizers
 from keras.models import Sequential, Model
 from keras.layers import Embedding, Flatten, Dense, Dropout, concatenate, multiply, Input
 from keras.optimizers import Adam
@@ -25,19 +18,7 @@ def write_output(prediction):
             f.write(pred+"\n")
 
 
-# In[2]:
-
-
 def build_MLP(n_users, n_items):
-  
-    # build model
-    num_epochs = 20
-    batch_size = 256
-    mf_dim = 8
-    layers = eval('[64,32,16,8]')
-    reg_mf = 0
-    reg_layers = eval('[0,0,0,0]')
-    verbose = 1
 
     # Build model
     dim_embedding_user = 50
@@ -55,7 +36,7 @@ def build_MLP(n_users, n_items):
     user_vec = Flatten(name ='User-Flatten')(user_embedding)
     user_vec = Dropout(0.2)(user_vec)
 
-    ## concatenate flattened values 
+    ## concatenate flattened values
     concat = concatenate([item_vec, user_vec])
     concat_dropout = Dropout(0.2)(concat)
 
@@ -79,35 +60,34 @@ def rmse(y_true, y_pred):
     return backend.sqrt(backend.mean(backend.square(y_pred - y_true), axis=-1))
 
 
-# In[3]:
-
-
-
-
 if __name__ == "__main__":
     df_train = pd.read_csv('data/ratings_train.csv', usecols = ['userId', 'movieId', 'rating'])
     df_valid = pd.read_csv('data/ratings_vali.csv', usecols = ['userId', 'movieId', 'rating'])
- 
-    # prepare train data
-    n_users, n_items = max(df_train.userId.unique()), max(df_train.movieId.unique())
-    user_train = df_train['userId'].to_numpy()
-    item_train = df_train['movieId'].to_numpy()
-    rate_train = df_train['rating'].to_numpy()
 
-    ## define model 
+    # prepare matix shape
+    total_user = np.concatenate((df_train.userId.unique(), df_valid.userId.unique()))
+    total_item = np.concatenate((df_train.movieId.unique(), df_valid.movieId.unique()))
+    n_users, n_items = max(total_user), max(total_item)
+
+    ## define model
     recommender = build_MLP(n_users, n_items)
     # recommender.summary()
-    
+
     # compile model
     opt_adam = Adam(lr = 0.002)
-    recommender.compile(optimizer=Adam(lr = 0.002), loss= ['mse'], metrics=['accuracy', rmse ])
-                      
+    recommender.compile(optimizer=Adam(lr = 0.002),
+            loss= ['mse'], metrics=['accuracy', rmse ])
+
+
     ## fit model
     track_training = recommender.fit([df_train['userId'], df_train['movieId']],
                                     df_train['rating'],
                                     batch_size = 256,
+                                    validation_data=(
+                                        [df_valid['userId'], df_valid['movieId']],
+                                        df_valid['rating']),
                                     validation_split = 0.005,
-                                    epochs =8,
+                                    epochs = 10,
                                     verbose = 0)
     # store model weights
     TRAINED_PARAM = 'param.data'
@@ -120,19 +100,6 @@ if __name__ == "__main__":
     for user, movie in inputs:
         target = [[int(user)],[int(movie)]]
         predict = recommender.predict(target)[0][0]
-        predict = round(predict, 8)
+        predict = round(predict, 9)
         predictions.append('{},{},{}'.format(user, movie, str(predict)))
-    write_output(predictions)    
-
-
-# In[4]:
-
-
-# pd.DataFrame(track_training.history)
-
-
-# In[5]:
-
-
-# recommender.summary()
-
+    write_output(predictions)
